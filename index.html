@@ -275,50 +275,78 @@
     </div>
 
     <script>
-        // Globalne spremenljivke
-        let speechRecognition = null;
-        let trenutneTocke = 0;
-        let ciljnaBeseda = '';
-        let debugMode = false;
-        let vseAlternative = [];
-        
-        let currentWordIndex = 0;
-        const wordList = [
-            { word: 'avto', image: 'https://i.postimg.cc/3JH3jT3S/avto.png' },
-            { word: 'žoga', image: 'https://via.placeholder.com/300x300/4CAF50/white?text=ŽOGA' },
-            { word: 'riba', image: 'https://via.placeholder.com/300x300/2196F3/white?text=RIBA' },
-            { word: 'šola', image: 'https://via.placeholder.com/300x300/FF9800/white?text=ŠOLA' },
-            { word: 'čebela', image: 'https://via.placeholder.com/300x300/9C27B0/white?text=ČEBELA' }
-        ];
+        // ================= AVDIO PODPORA =================
+let audioPravilno = null;
+let audioNapacno = null;
+let audioEnabled = true;
 
-        // Inicializacija ob nalaganju strani
-        window.onload = function() {
-            log('Stran naložena - inicializacija najstrožjega sistema...');
-            inicializirajGlasovnoPrepoznavanje();
-            updateWordDisplay();
-        };
-        
-        // Posodobi prikaz besede in slike
-        function updateWordDisplay() {
-            const currentWordData = wordList[currentWordIndex];
-            ciljnaBeseda = currentWordData.word;
-            
-            document.getElementById('ciljnaBesedaDisplay').textContent = ciljnaBeseda.toUpperCase();
-            document.getElementById('glasoviDisplay').textContent = ciljnaBeseda.toUpperCase().split('').join(' - ');
-            document.getElementById('mainImage').src = currentWordData.image;
-            document.getElementById('mainImage').alt = `Slika za besedo ${ciljnaBeseda}`;
-            
-            prikaziStatus(`Pritisni gumb in povej natančno: "${ciljnaBeseda.toUpperCase()}"`, '');
-            document.getElementById('povratna').style.display = 'none';
-            document.getElementById('alternativeInfo').style.display = 'none';
-            log(`Nova ciljna beseda: ${ciljnaBeseda}`);
-        }
+// Prilagodi URL-je glede na svojo Render domeno!
+function inicializirajAvdio() {
+    audioPravilno = new Audio('https://primerjava-izgovorjave.onrender.com/audio/avto_pravilno.mp3');
+    audioNapacno = new Audio('https://primerjava-izgovorjave.onrender.com/audio/avto_napacno.mp3');
+    audioPravilno.preload = 'auto';
+    audioNapacno.preload = 'auto';
+    audioPravilno.volume = 0.7;
+    audioNapacno.volume = 0.7;
+    log('Avdio datoteke inicializirane');
+}
 
-        // Preklopi na naslednjo besedo
-        function nextWord() {
-            currentWordIndex = (currentWordIndex + 1) % wordList.length;
-            updateWordDisplay();
-        }
+function predvajajAvdio(tip) {
+    if (!audioEnabled) return;
+    if (tip === 'uspeh' && audioPravilno) {
+        audioPravilno.currentTime = 0;
+        audioPravilno.play().catch(()=>{});
+    }
+    if (tip === 'napaka' && audioNapacno) {
+        audioNapacno.currentTime = 0;
+        audioNapacno.play().catch(()=>{});
+    }
+}
+
+// =================================================
+
+// Globalne spremenljivke
+let speechRecognition = null;
+let trenutneTocke = 0;
+let ciljnaBeseda = '';
+let debugMode = false;
+let vseAlternative = [];
+
+let currentWordIndex = 0;
+const wordList = [
+    { word: 'avto', image: 'https://i.postimg.cc/3JH3jT3S/avto.png' },
+    { word: 'žoga', image: 'https://via.placeholder.com/300x300/4CAF50/white?text=ŽOGA' },
+    { word: 'riba', image: 'https://via.placeholder.com/300x300/2196F3/white?text=RIBA' },
+    { word: 'šola', image: 'https://via.placeholder.com/300x300/FF9800/white?text=ŠOLA' },
+    { word: 'čebela', image: 'https://via.placeholder.com/300x300/9C27B0/white?text=ČEBELA' }
+];
+
+// Inicializacija ob nalaganju strani
+window.onload = function() {
+    log('Stran naložena - inicializacija najstrožjega sistema...');
+    inicializirajAvdio(); // <<< DODANO
+    inicializirajGlasovnoPrepoznavanje();
+    updateWordDisplay();
+};
+
+function updateWordDisplay() {
+    const currentWordData = wordList[currentWordIndex];
+    ciljnaBeseda = currentWordData.word;
+
+    document.getElementById('ciljnaBesedaDisplay').textContent = ciljnaBeseda.toUpperCase();
+    document.getElementById('glasoviDisplay').textContent = ciljnaBeseda.toUpperCase().split('').join(' - ');
+    document.getElementById('mainImage').src = currentWordData.image;
+    document.getElementById('mainImage').alt = `Slika za besedo ${ciljnaBeseda}`;
+
+    prikaziStatus(`Pritisni gumb in povej natančno: "${ciljnaBeseda.toUpperCase()}"`, '');
+    document.getElementById('povratna').style.display = 'none';
+    document.getElementById('alternativeInfo').style.display = 'none';
+    log(`Nova ciljna beseda: ${ciljnaBeseda}`);
+}
+
+function nextWord() {
+    currentWordIndex = (currentWordIndex + 1) % wordList.length;
+    updateWordDisplay();
 
         // INICIALIZACIJA GLASOVNEGA PREPOZNAVANJA
         function inicializirajGlasovnoPrepoznavanje() {
@@ -566,47 +594,58 @@
         }
         
         // PRIKAŽI REZULTAT z najstrožjimi pragovi
-        function prikaziRezultat(rezultat) {
-            // NAJSTROŽJI PRAGOVI za profesionalno uporabo
-            const pragPopolnosti = 0.99;   // Skoraj popolno
-            const pragUspeha = 0.88;       // Uspešno
-            const pragSpodbude = 0.70;     // Potrebna izboljšava
-            const pragPomoči = 0.45;       // Slaba izgovorjava
-            
-            let cssClass = '';
-            let sporocilo = '';
-            let tocke = 0
-			       if (rezultat.tip === 'kriticno') {
-                cssClass = 'kriticna';
-                sporocilo = `❌ KRITIČNA NAPAKA! Slišal sem "${rezultat.prepoznanaBeseda.toUpperCase()}". Napake: ${rezultat.napake ? rezultat.napake.join(', ') : 'neznana napaka'}. V slovenščini so ti glasovi različni!`;
-                tocke = 0;
-            } else if (rezultat.natancnost >= pragPopolnosti) {
-                cssClass = 'uspeh';
-                sporocilo = `🎉 ODLIČNO! Popolnoma pravilno si izgovoril "${ciljnaBeseda.toUpperCase()}"!`;
-                tocke = 30;
-            } else if (rezultat.natancnost >= pragUspeha) {
-                cssClass = 'uspeh';
-                sporocilo = `✅ Zelo dobro! Pravilno si povedal "${ciljnaBeseda.toUpperCase()}".`;
-                tocke = 20;
-            } else if (rezultat.natancnost >= pragSpodbude) {
-                cssClass = 'spodbuda';
-                sporocilo = `💪 Dobro poskušaš! Slišal sem "${rezultat.prepoznanaBeseda}". Poskusi še malo jasneje: ${ciljnaBeseda.toUpperCase().split('').join(' - ')}`;
-                tocke = 10;
-            } else if (rezultat.natancnost >= pragPomoči) {
-                cssClass = 'pomoc';
-                sporocilo = `🎯 Slišal sem "${rezultat.prepoznanaBeseda}". Pozor na izgovorjavo: ${ciljnaBeseda.toUpperCase().split('').join(' - ')}`;
-                tocke = 5;
-            } else {
-                cssClass = 'pomoc';
-                sporocilo = `💡 Slišal sem "${rezultat.prepoznanaBeseda}". Poglej sliko in poskusi jasno povedati "${ciljnaBeseda.toUpperCase()}".`;
-                tocke = 2;
-            }
-            
-            prikaziPovratno(sporocilo, cssClass);
-            dodajTocke(tocke);
-            
-            log(`Rezultat: ${rezultat.tip}, Točke: ${tocke}, Natančnost: ${(rezultat.natancnost*100).toFixed(1)}%`);
-        }
+        function // PRIKAŽI REZULTAT z najstrožjimi pragovi in avdio povratno informacijo
+function prikaziRezultat(rezultat) {
+    const pragPopolnosti = 0.99;
+    const pragUspeha = 0.88;
+    const pragSpodbude = 0.70;
+    const pragPomoči = 0.45;
+
+    let cssClass = '';
+    let sporocilo = '';
+    let tocke = 0;
+    let avdioTip = null;
+
+    if (rezultat.tip === 'kriticno') {
+        cssClass = 'kriticna';
+        sporocilo = `❌ KRITIČNA NAPAKA! Slišal sem "${rezultat.prepoznanaBeseda.toUpperCase()}". Napake: ${rezultat.napake ? rezultat.napake.join(', ') : 'neznana napaka'}. V slovenščini so ti glasovi različni!`;
+        tocke = 0;
+        avdioTip = 'napaka';
+    } else if (rezultat.natancnost >= pragPopolnosti) {
+        cssClass = 'uspeh';
+        sporocilo = `🎉 ODLIČNO! Popolnoma pravilno si izgovoril "${ciljnaBeseda.toUpperCase()}"!`;
+        tocke = 30;
+        avdioTip = 'uspeh';
+    } else if (rezultat.natancnost >= pragUspeha) {
+        cssClass = 'uspeh';
+        sporocilo = `✅ Zelo dobro! Pravilno si povedal "${ciljnaBeseda.toUpperCase()}".`;
+        tocke = 20;
+        avdioTip = 'uspeh';
+    } else if (rezultat.natancnost >= pragSpodbude) {
+        cssClass = 'spodbuda';
+        sporocilo = `💪 Dobro poskušaš! Slišal sem "${rezultat.prepoznanaBeseda}". Poskusi še malo jasneje: ${ciljnaBeseda.toUpperCase().split('').join(' - ')}`;
+        tocke = 10;
+        avdioTip = 'napaka';
+    } else if (rezultat.natancnost >= pragPomoči) {
+        cssClass = 'pomoc';
+        sporocilo = `🎯 Slišal sem "${rezultat.prepoznanaBeseda}". Pozor na izgovorjavo: ${ciljnaBeseda.toUpperCase().split('').join(' - ')}`;
+        tocke = 5;
+        avdioTip = 'napaka';
+    } else {
+        cssClass = 'pomoc';
+        sporocilo = `💡 Slišal sem "${rezultat.prepoznanaBeseda}". Poglej sliko in poskusi jasno povedati "${ciljnaBeseda.toUpperCase()}".`;
+        tocke = 2;
+        avdioTip = 'napaka';
+    }
+
+    prikaziPovratno(sporocilo, cssClass);
+    dodajTocke(tocke);
+
+    // PREDVAJAJ USTREZEN ZVOK
+    if (avdioTip) predvajajAvdio(avdioTip);
+
+    log(`Rezultat: ${rezultat.tip}, Točke: ${tocke}, Natančnost: ${(rezultat.natancnost*100).toFixed(1)}%`);
+}
         
         // POMOŽNE FUNKCIJE ZA UI
         function prikaziStatus(besedilo, cssClass) {
