@@ -400,8 +400,8 @@
                 for (let i = 0; i < event.results[0].length; i++) {
                     const alternativa = event.results[0][i];
                     vseAlternative.push({
-                        besedilo: alternativa.transcript.toLowerCase().trim(),
-                        zaupanje: alternativa.confidence || null
+                        transcript:  alternativa.transcript.toLowerCase().trim(),
+                        confidence:  alternativa.confidence || null
                     });
                 }
                 
@@ -443,7 +443,7 @@
         for (let i = 0; i < alternative.length; i++) {
             const alt = alternative[i];
             const zaupanjeText = alt.zaupanje !== null ? (alt.zaupanje * 100).toFixed(1) + '%' : 'N/A';
-            html += `${i + 1}. "${alt.besedilo}" (${zaupanjeText})<br>`;
+            html += `${i + 1}. "${alt.transcript}" (${zaupanjeText})<br>`;
         }
         
         listEl.innerHTML = html;
