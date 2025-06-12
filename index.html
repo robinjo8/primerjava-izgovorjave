@@ -551,38 +551,74 @@
     }
     
     // PRIKAZ REZULTATA Z ABSOLUTNO STRIKTNOSTJO
-    function prikaziRezultat(rezultat) {
-        let cssClass = '';
-        let sporocilo = '';
-        let tocke = 0;
-        let avdioTip = 'napaka'; // Privzeto napaka, spremeni se samo za popolno ujemanje
-        
-        if (rezultat.tip === 'popolno') {
-            // EDINI NAČIN ZA USPEH = POPOLNO UJEMANJE
-            cssClass = 'uspeh';
-            sporocilo = `🎉 ODLIČNO! Popolnoma pravilno si izgovoril "${ciljnaBeseda.toUpperCase()}"!`;
-            tocke = 30;
-            avdioTip = 'uspeh';
-            log(`✅ POPOLNA IZGOVORJAVA - predvajam pozitivni zvok`);
-        } else if (rezultat.tip === 'znana_napaka') {
-            cssClass = 'kriticna';
-            sporocilo = `❌ TIPIČNA NAPAKA! Slišal sem "${rezultat.prepoznanaBeseda.toUpperCase()}", pravilno je "${ciljnaBeseda.toUpperCase()}". Pozor na glasove: ${ciljnaBeseda.toUpperCase().split('').join(' - ')}`;
-            tocke = 0;
-            avdioTip = 'napaka';
-            log(`❌ ZNANA NAPAČNA IZGOVORJAVA - predvajam negativni zvok`);
-        } else if (rezultat.tip === 'kriticno') {
-            cssClass = 'kriticna';
-            sporocilo = `❌ KRITIČNA NAPAKA! Slišal sem "${rezultat.prepoznanaBeseda.toUpperCase()}". Napake: ${rezultat.napake ? rezultat.napake.join(', ') : 'fonetična napaka'}. V slovenščini so ti glasovi različni!`;
-            tocke = 0;
-            avdioTip = 'napaka';
-            log(`❌ KRITIČNA FONETIČNA NAPAKA - predvajam negativni zvok`);
-        } else {
-            cssClass = 'pomoc';
-            sporocilo = `💡 Slišal sem "${rezultat.prepoznanaBeseda}". Poglej sliko in poskusi jasno povedati "${ciljnaBeseda.toUpperCase()}": ${ciljnaBeseda.toUpperCase().split('').join(' - ')}`;
-            tocke = 1;
-            avdioTip = 'napaka';
-            log(`❌ OSTALA NAPAKA - predvajam negativni zvok`);
+    function striktnaAnalizaIzgovorjave(alternative, ciljna) {
+    ciljna = ciljna.toLowerCase().trim();
+    const currentWordData = wordList[currentWordIndex];
+
+    // ─────────────────────────────────────────────────────────────
+    //  A.  POZORNO POGLEDAJMO SAMO PRVO (NAJVERJETNEJŠO) ALTERNATIVO
+    // ─────────────────────────────────────────────────────────────
+    if (!alternative || alternative.length === 0) {
+        return {
+            natancnost: 0,
+            tip: 'napaka',
+            prepoznanaBeseda: '',
+            sporocilo: 'Nič ni bilo prepoznano – poskusi še enkrat.'
+        };
+    }
+
+    const bestAlt      = alternative[0];
+    const besediloRaw  = (bestAlt.transcript || '').toLowerCase().trim()
+                                .replace(/[.,!?]/g, '');
+    const confidence   = typeof bestAlt.confidence === 'number' ? bestAlt.confidence : 0;
+
+    // (1) Najprej: je prvi rezultat TOČNO ciljna beseda in dovolj zaupanja?
+    if (besediloRaw === ciljna && confidence >= 0.80) {
+        return {
+            natancnost: confidence,
+            tip: 'popolno',
+            prepoznanaBeseda: besediloRaw,
+            sporocilo: `Odlično! Pravilno si povedal "${ciljna.toUpperCase()}".`
+        };
+    }
+
+    // (2) Če NE – preveri, ali se med katero koli alternativo skriva znana napaka.
+    for (let alt of alternative) {
+        const txt = alt.transcript.toLowerCase().trim().replace(/[.,!?]/g, '');
+        if (currentWordData.napacneIzgovorjave.includes(txt)) {
+            return {
+                natancnost: 0,
+                tip: 'znana_napaka',
+                prepoznanaBeseda: txt,
+                sporocilo:
+                  `Tipična napaka – slišal sem "${txt.toUpperCase()}", ` +
+                  `pravilno je "${ciljna.toUpperCase()}".`
+            };
         }
+    }
+
+    // (3) Nadalje: preveri kritične fonetične zamenjave samo med PRVO alternativo in ciljem.
+    const kriticneNapake = preveriKriticneNapake(besediloRaw, ciljna);
+    if (kriticneNapake.length > 0) {
+        return {
+            natancnost: 0,
+            tip: 'kriticno',
+            prepoznanaBeseda: besediloRaw,
+            napake: kriticneNapake
+        };
+    }
+
+    // (4) Vse ostalo = napaka.
+    return {
+        natancnost: confidence,
+        tip: 'napaka',
+        prepoznanaBeseda: besediloRaw,
+        sporocilo:
+          `Slišal sem "${besediloRaw}". Poskusi še enkrat jasno izgovoriti ` +
+          `"${ciljna.toUpperCase()}".`
+    };
+}
+
         
         prikaziPovratno(sporocilo, cssClass);
         dodajTocke(tocke);
