@@ -275,7 +275,7 @@
     </div>
 
     <script>
-        // ================= AVDIO PODPORA =================
+        // ================= // ================= AVDIO PODPORA =================
 let audioPravilno = null;
 let audioNapacno = null;
 let audioEnabled = true;
@@ -328,6 +328,26 @@ window.onload = function() {
     inicializirajGlasovnoPrepoznavanje();
     updateWordDisplay();
 };
+
+function updateWordDisplay() {
+    const currentWordData = wordList[currentWordIndex];
+    ciljnaBeseda = currentWordData.word;
+
+    document.getElementById('ciljnaBesedaDisplay').textContent = ciljnaBeseda.toUpperCase();
+    document.getElementById('glasoviDisplay').textContent = ciljnaBeseda.toUpperCase().split('').join(' - ');
+    document.getElementById('mainImage').src = currentWordData.image;
+    document.getElementById('mainImage').alt = `Slika za besedo ${ciljnaBeseda}`;
+
+    prikaziStatus(`Pritisni gumb in povej natančno: "${ciljnaBeseda.toUpperCase()}"`, '');
+    document.getElementById('povratna').style.display = 'none';
+    document.getElementById('alternativeInfo').style.display = 'none';
+    log(`Nova ciljna beseda: ${ciljnaBeseda}`);
+}
+
+function nextWord() {
+    currentWordIndex = (currentWordIndex + 1) % wordList.length;
+    updateWordDisplay();
+}
 
 function updateWordDisplay() {
     const currentWordData = wordList[currentWordIndex];
@@ -593,8 +613,7 @@ function nextWord() {
             return matrix[s2.length][s1.length];
         }
         
-        // PRIKAŽI REZULTAT z najstrožjimi pragovi
-        function // PRIKAŽI REZULTAT z najstrožjimi pragovi in avdio povratno informacijo
+        // PRIKAŽI REZULTAT z najstrožjimi pragovi in avdio povratno informacijo
 function prikaziRezultat(rezultat) {
     const pragPopolnosti = 0.99;
     const pragUspeha = 0.88;
